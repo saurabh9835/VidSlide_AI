@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>VidSlide AI - Generate Slides from YouTube</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header class="header">
+        <h1 class="header-title">VidSlide AI</h1>
+        <div class="theme-switch-wrapper">
+            <label class="theme-switch" for="checkbox">
+                <input type="checkbox" id="checkbox" />
+                <div class="slider"></div>
+            </label>
+        </div>
+    </header>
+
+    <main class="container" id="main-container">
+        <h2 class="text-logo">VidSlide AI</h2>
+
+        <div class="form-card" id="form-card">
+            <form method="POST" id="main-form">
+                <input type="text" id="youtube_url" name="youtube_url" placeholder="Paste YouTube link (e.g. https://www.youtube.com/..)" required>
+
+                <div class="setting-row">
+                    <label for="sensitivity">Detection Sensitivity:</label>
+                    <select name="sensitivity" id="sensitivity">
+                        <option value="0.99">Low (Fewer Slides)</option>
+                        <option value="0.98" selected>Normal (Recommended)</option>
+                        <option value="0.97">High (More Slides)</option>
+                    </select>
+                </div>
+
+                <button type="submit">Generate Slides</button>
+            </form>
+        </div>
+
+        <div id="progress-container">
+            <div id="progress-bar">0%</div>
+        </div>
+        <p id="progress-text">Analyzing video... this may take several minutes.</p>
+    </main>
+
+    <script>
+        // Theme persistence
+        const toggleSwitch = document.querySelector('.theme-switch input[type="checkbox"]');
+        const currentTheme = localStorage.getItem('theme');
+        if (currentTheme) {
+            document.body.classList.add(currentTheme);
+            if (currentTheme === 'dark-mode') toggleSwitch.checked = true;
+        }
+        function switchTheme(e) {
+            if (e.target.checked) {
+                document.body.classList.add('dark-mode');
+                localStorage.setItem('theme', 'dark-mode');
+            } else {
+                document.body.classList.remove('dark-mode');
+                localStorage.setItem('theme', 'light-mode');
+            }
+        }
+        toggleSwitch.addEventListener('change', switchTheme, false);
+
+        // Fake progress UI (estimation only)
+        const form = document.getElementById('main-form');
+        const formCard = document.getElementById('form-card');
+        const progressContainer = document.getElementById('progress-container');
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+        const mainContainer = document.getElementById('main-container');
+
+        form.addEventListener('submit', function() {
+            mainContainer.classList.add('processing');
+            formCard.classList.add('hidden');
+
+            setTimeout(() => {
+                progressContainer.style.display = 'block';
+                progressText.style.display = 'block';
+                progressContainer.classList.add('visible');
+                progressText.classList.add('visible');
+
+                let width = 0;
+                const interval = setInterval(function() {
+                    if (width >= 95) { clearInterval(interval); }
+                    else {
+                        if (width < 60) width += 1;
+                        else if (width < 85) width += 0.5;
+                        else width += 0.1;
+                        progressBar.style.width = width + '%';
+                        progressBar.innerText = Math.round(width) + '%';
+                    }
+                }, 2000);
+            }, 300);
+        });
+    </script>
+</body>
+</html>

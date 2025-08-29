@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>VidSlide AI - Preview</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header class="header">
+        <h1 class="header-title">VidSlide AI</h1>
+        <div class="theme-switch-wrapper">
+            <label class="theme-switch" for="checkbox">
+                <input type="checkbox" id="checkbox" />
+                <div class="slider"></div>
+            </label>
+        </div>
+    </header>
+
+    <main class="container">
+        <a href="{{ url_for('download_pptx', session_id=session_id) }}" class="download-button">📥 Download Presentation (.pptx)</a>
+        <a href="{{ url_for('download_zip', session_id=session_id) }}" class="download-button" style="background:linear-gradient(45deg,#ff8a00,#e52e71); margin-left:10px;">📦 Download All Slides (ZIP)</a>
+
+        <div class="slide-gallery" style="margin-top:30px;">
+            {% for img in images %}
+            <div class="slide-item">
+                <img src="{{ url_for('serve_slide', session_id=session_id, filename=img) }}" alt="Slide" style="width:100%; display:block;">
+            </div>
+            {% endfor %}
+        </div>
+    </main>
+
+    <script>
+        // Theme state (same as index)
+        const toggleSwitch = document.querySelector('.theme-switch input[type="checkbox"]');
+        const currentTheme = localStorage.getItem('theme');
+        if (currentTheme) {
+            document.body.classList.add(currentTheme);
+            if (currentTheme === 'dark-mode') toggleSwitch.checked = true;
+        }
+        function switchTheme(e) {
+            if (e.target.checked) { document.body.classList.add('dark-mode'); localStorage.setItem('theme', 'dark-mode'); }
+            else { document.body.classList.remove('dark-mode'); localStorage.setItem('theme', 'light-mode'); }
+        }
+        toggleSwitch.addEventListener('change', switchTheme, false);
+    </script>
+</body>
+</html>
