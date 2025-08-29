@@ -1,6 +1,15 @@
-Flask==3.0.2
-Werkzeug==3.0.1
-opencv-python==4.9.0.80
-numpy==1.26.4
-Pillow==10.2.0
-gunicorn==22.0.0   # for deployment (optional but useful if hosting)
+# Core Web Framework
+Flask
+
+# Machine Learning & Computer Vision
+tensorflow
+scikit-learn
+opencv-python-headless
+numpy
+
+# Presentation & Video Tools
+python-pptx
+yt-dlp
+
+# Other utilities
+gunicorn
