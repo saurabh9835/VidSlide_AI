@@ -1,70 +1,163 @@
-🎥 VidSlide AI 🔥
-Have you ever watched a long lecture or presentation on YouTube and wished you could just get the slides? VidSlide AI is a web application that does exactly that. By simply pasting a YouTube video link, this tool uses machine learning to intelligently detect and extract key presentation slides, compiling them into a downloadable PowerPoint (.pptx) file.
+Here's your updated README.md with a GitHub badges section added and the License section removed, as requested. The badges are placed right after the project title for visibility:
 
-This project is built with Python and Flask, providing a clean web interface for a powerful backend process.
 
-🖼️ Screenshots
-(It's highly recommended to add screenshots of your application here. Create an images folder in your repository and update the paths below.)
+---
 
-Home Page
+🎥 VidSlide AI
 
-Slide Preview Page
+   
+
+VidSlide AI is a web application that transforms long YouTube lectures and presentations into clean, downloadable slide decks. Just paste a YouTube link and let the app use advanced machine learning to detect and extract key presentation slides into a .pptx file.
+
+> 🚀 Turn videos into presentations in seconds!
+
+
+
+
+---
+
+📑 Table of Contents
+
+Introduction
+
+Screenshots
+
+Features
+
+Tech Stack
+
+Project Structure
+
+Installation
+
+Usage
+
+Configuration
+
+Examples
+
+Troubleshooting
+
+Contributors
+
+
+
+---
+
+🧠 Introduction
+
+Have you ever sat through an hour-long YouTube lecture and just wanted the slides? VidSlide AI does exactly that.
+
+Built with Python and Flask, this web app allows users to paste any YouTube video URL and uses a ResNet50 model to detect stable slide frames, extract them, and generate a PowerPoint file—automatically.
+
+
+---
+
+🖼 Screenshots
+
+> 💡 Add actual images in the images/ folder and update the links below.
+
+
+
+Home Page	Slide Preview Page
+
+	
+
+
+
+---
 
 ✨ Features
-YouTube Integration: Works with any public YouTube video link.
 
-Advanced Slide Detection: Uses a ResNet50 machine learning model to analyze frames and accurately detect stable slides, ignoring transitions and animations.
+🔗 YouTube Integration – Works with any public YouTube video link.
 
-Adjustable Sensitivity: Users can choose between "Low," "Normal," or "High" sensitivity to generate fewer or more slides depending on the video's pacing.
+🧠 Slide Detection – Uses a ResNet50 ML model to find stable slides while ignoring animations/transitions.
 
-PowerPoint & ZIP Export: Generates a ready-to-use .pptx presentation and a .zip archive containing all extracted slide images.
+🎚 Sensitivity Control – Choose from Low, Normal, or High slide detection sensitivity.
 
-Web-Based Interface: A clean and user-friendly UI with a slide preview page.
+📦 PowerPoint & ZIP Export – Download slides as .pptx or as a .zip of images.
 
-Secure Session Management: Each user's request is handled in an isolated session folder, which is automatically cleaned up to save server space.
+🌐 Web-Based UI – Clean, responsive interface with preview functionality.
 
-Dark Mode: Includes a theme toggle for user preference.
+🔐 Secure Sessions – Temporary session folders are isolated and auto-deleted after use.
 
-🛠️ Tech Stack
-Backend: Python, Flask
+🌗 Dark Mode – Toggle between light and dark themes.
 
-Machine Learning: TensorFlow (Keras), Scikit-learn
 
-Video Processing: OpenCV, yt-dlp
 
-Presentation Generation: python-pptx
+---
 
-Frontend: HTML, CSS, JavaScript
+🛠 Tech Stack
+
+Backend:
+
+Python
+
+Flask
+
+
+Machine Learning:
+
+TensorFlow (Keras)
+
+Scikit-learn
+
+
+Video Processing:
+
+OpenCV
+
+yt-dlp
+
+
+Presentation Generation:
+
+python-pptx
+
+
+Frontend:
+
+HTML
+
+CSS
+
+JavaScript
+
+
+
+---
 
 📂 Project Structure
+
 VidSlide-AI/
 │
-├── .gitignore          # Specifies files for Git to ignore
-├── README.md           # This file
-├── requirements.txt    # Python dependencies
-├── app.py              # The main Flask application
+├── .gitignore
+├── README.md
+├── requirements.txt
+├── app.py
 │
 ├── static/
-│   └── style.css       # All CSS styling
+│   └── style.css
 │
 ├── templates/
-│   ├── index.html      # The main landing/upload page
-│   └── preview.html    # The page to preview generated slides
+│   ├── index.html
+│   └── preview.html
 │
-└── sessions/           # Auto-created for temporary files (ignored by git)
-🚀 How to Run Locally
-Follow these steps to get the project running on your local machine.
+└── sessions/           # Temporary session folders (ignored by Git)
+
+
+---
+
+🧪 Installation
+
+Follow these steps to run the project locally:
 
 1. Clone the Repository
 
-Bash
-
 git clone https://github.com/saurabh9835/VidSlide_AI.git
 cd VidSlide_AI
-2. Create and Activate a Virtual Environment
-It's recommended to use a virtual environment to manage dependencies.
 
-Bash
+2. Create and Activate a Virtual Environment
 
 # Create the environment
 python -m venv venv
@@ -74,39 +167,83 @@ venv\Scripts\activate
 
 # Activate on macOS/Linux
 source venv/bin/activate
-3. Install Dependencies
-Install all the required Python libraries from the requirements.txt file.
 
-Bash
+3. Install Dependencies
 
 pip install -r requirements.txt
+
 4. Run the Application
 
-Bash
-
 python app.py
-The application will now be running. Open your web browser and navigate to:
-http://12.0.0.1:5000 🎉
 
-👤 Author
-Saurabh
-
-GitHub: @saurabh9835
-
-LinkedIn: Your LinkedIn Profile (<- Update this link)
-
-⭐ Please star this repository if you find it helpful!
+Then open your browser and go to:
+👉 http://127.0.0.1:5000
 
 
+---
 
+⚙ Configuration
 
+No additional configuration is required. All sessions are created dynamically and cleaned up after use. For deployment or custom configurations, consider:
 
+SESSION_FOLDER path
 
+Model loading/custom ML pipeline
 
+Web server setup (e.g., Gunicorn, Nginx for production)
 
 
 
+---
+
+📌 Usage
+
+1. Paste a YouTube video URL.
 
 
-Tools
+2. Select sensitivity level (Low, Normal, High).
 
+
+3. Click "Extract Slides".
+
+
+4. Preview and download your .pptx or .zip file.
+
+
+
+
+---
+
+💡 Examples
+
+> Coming Soon: GIFs or screenshots showing the slide extraction process.
+
+
+
+
+---
+
+🛠 Troubleshooting
+
+Video Not Downloading?
+Ensure the video is public and yt-dlp is installed correctly.
+
+No Slides Detected?
+Try lowering the sensitivity or choose a video with more static slides.
+
+Server Crashes?
+Check console logs and ensure dependencies (like TensorFlow) are properly installed.
+
+
+
+---
+
+👤 Contributors
+
+Author: Saurabh
+🔗 LinkedIn – Update This Link
+
+
+---
+
+Let me know if you'd like the badges customized further (e.g. with CI status, deployment badge, Python version support, etc.).
