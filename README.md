@@ -37,10 +37,6 @@ The app can do a lot of cool things, such as:
 
 (All dependencies are included in `requirements.txt`)
 
-### 2. Clone The Repository
-```bash
-git clone <URL>
-cd video-to-slides
 
 📌 Contributing
 
