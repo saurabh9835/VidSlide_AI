@@ -26,8 +26,8 @@ The app can do a lot of cool things, such as:
 ---
 📌 Screenshots
 
-![Homepage](images/homepage.png)
-![Slides](images/slides.png)
+![Homepage](image/homepage.png)
+![Slides](image/slides.png)
 
 ## 📌 Requirements
 - Python 3.8+  
