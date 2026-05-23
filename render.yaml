@@ -5,5 +5,8 @@ services:
     plan: starter
     branch: main
     pythonVersion: "3.11.19"
+    envVars:
+      - key: SKIP_ML
+        value: "1"
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app --workers 2 --threads 4 --timeout 300
