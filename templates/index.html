@@ -111,10 +111,21 @@
             if (hasFile) fd.set('video_file', fileInput.files[0]);
 
             fetch(endpoint, { method: 'POST', body: fd })
-                .then(resp => resp.json().then(j => ({status: resp.status, body: j})))
-                .then(({status, body}) => {
+                .then(resp => {
+                    if (!resp.ok) {
+                        return resp.text().then(text => {
+                            try {
+                                return JSON.parse(text);
+                            } catch (e) {
+                                throw new Error(`Server error (${resp.status}): ${text.substring(0, 200)}`);
+                            }
+                        });
+                    }
+                    return resp.json();
+                })
+                .then(body => {
                     clearInterval(interval);
-                    if (status >= 200 && body.success) {
+                    if (body && body.success) {
                         // Go to preview page
                         window.location.href = body.preview_url;
                     } else {
@@ -137,7 +148,7 @@
                     progressText.style.display = 'none';
                     formCard.classList.remove('hidden');
                     mainContainer.classList.remove('processing');
-                    alert('Network or server error: ' + err);
+                    alert('Server error: ' + err.message);
                 });
         });
     </script>

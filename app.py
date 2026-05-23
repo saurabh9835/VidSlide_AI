@@ -360,7 +360,6 @@ def api_upload():
 
     return jsonify({'success': True, 'preview_url': url_for('preview')})
 
-    return render_template("index.html")
 
 @app.route("/preview")
 def preview():
