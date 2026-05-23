@@ -16,7 +16,10 @@ from flask import (
     send_from_directory,
     flash,
     after_this_request,
+    jsonify,
 )
+import traceback
+import importlib
 
 # Optional ML imports (heavy)
 import cv2
@@ -24,9 +27,22 @@ import numpy as np
 import yt_dlp
 from pptx import Presentation
 from pptx.util import Inches
-from tensorflow.keras.applications.resnet50 import ResNet50, preprocess_input
-from tensorflow.keras.preprocessing import image as keras_image
 from sklearn.metrics.pairwise import cosine_similarity
+
+ResNet50 = None
+preprocess_input = None
+keras_image = None
+
+def load_keras_modules():
+    global ResNet50, preprocess_input, keras_image
+    try:
+        resnet_mod = importlib.import_module("tensorflow.keras.applications.resnet50")
+        keras_image = importlib.import_module("tensorflow.keras.preprocessing.image")
+    except ModuleNotFoundError:
+        resnet_mod = importlib.import_module("keras.applications.resnet50")
+        keras_image = importlib.import_module("keras.preprocessing.image")
+    ResNet50 = getattr(resnet_mod, "ResNet50")
+    preprocess_input = getattr(resnet_mod, "preprocess_input")
 
 # -------------------------
 # Configuration
@@ -44,6 +60,7 @@ os.makedirs(SESSIONS_DIR, exist_ok=True)
 SKIP_ML = os.environ.get("SKIP_ML", "0") == "1"
 if not SKIP_ML:
     try:
+        load_keras_modules()
         base_model = ResNet50(weights="imagenet", include_top=False, pooling="avg")
         app.logger.info("ResNet50 loaded.")
     except Exception as e:
@@ -74,12 +91,32 @@ def cleanup_old_sessions(max_age_seconds=3600):
         except Exception as e:
             app.logger.error(f"Error cleaning session {sid}: {e}")
 
-def get_stream_url(youtube_url):
-    """Return a direct playable stream URL using yt_dlp."""
-    ydl_opts = {"format": "best[ext=mp4]/best"}
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(youtube_url, download=False)
-        return info.get("url")
+def download_video_url(video_url, session_dir):
+    """Download a remote video URL into the session directory and return local path.
+
+    Using a local file is more reliable for OpenCV VideoCapture than a remote stream URL.
+    """
+    out_path = os.path.join(session_dir, "video.mp4")
+    ydl_opts = {
+        "format": "bestvideo+bestaudio/best",
+        "outtmpl": out_path,
+        "merge_output_format": "mp4",
+        "noplaylist": True,
+        "quiet": True,
+    }
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([video_url])
+    except Exception as e:
+        msg = str(e)
+        # Detect common yt-dlp DRM message
+        if 'DRM' in msg or 'DRM protected' in msg or 'This video is DRM protected' in msg:
+            raise RuntimeError("Video appears to be DRM-protected and cannot be downloaded.")
+        raise RuntimeError(f"yt-dlp download error: {e}")
+
+    if not os.path.exists(out_path):
+        raise RuntimeError("Download failed; video file not found")
+    return out_path
 
 def extract_features(frame):
     """Given a BGR OpenCV frame, return a ResNet50 feature vector (1D numpy)."""
@@ -95,9 +132,9 @@ def extract_features(frame):
     feats = base_model.predict(arr, verbose=0)
     return feats.flatten()
 
-def youtube_to_slides(youtube_url, session_id, similarity_threshold=0.98):
+def video_url_to_slides(video_url, session_id, similarity_threshold=0.98):
     """
-    Process a YouTube video stream and extract slide images using ML logic with
+    Process a remote video URL and extract slide images using ML logic with
     user-defined similarity threshold. Returns list of image filenames and pptx path.
     """
     session_dir = os.path.join(SESSIONS_DIR, session_id)
@@ -108,13 +145,28 @@ def youtube_to_slides(youtube_url, session_id, similarity_threshold=0.98):
     pptx_path = os.path.join(pptx_dir, "extracted_slides.pptx")
 
     try:
-        stream_url = get_stream_url(youtube_url)
+        video_path = download_video_url(video_url, session_dir)
     except Exception as e:
-        raise RuntimeError(f"Could not extract video stream: {e}")
+        raise RuntimeError(f"Could not download video: {e}")
 
-    cap = cv2.VideoCapture(stream_url)
+    return process_video(video_path, session_id, similarity_threshold)
+
+
+def process_video(video_path, session_id, similarity_threshold=0.98):
+    """Common video -> slides processing for a local video file path.
+
+    Returns (saved_images, pptx_path, zip_path)
+    """
+    session_dir = os.path.join(SESSIONS_DIR, session_id)
+    slides_dir = os.path.join(session_dir, "slides")
+    os.makedirs(slides_dir, exist_ok=True)
+    pptx_dir = os.path.join(session_dir, "presentations")
+    os.makedirs(pptx_dir, exist_ok=True)
+    pptx_path = os.path.join(pptx_dir, "extracted_slides.pptx")
+
+    cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
-        raise RuntimeError("Could not open video stream / URL.")
+        raise RuntimeError("Could not open video file for processing.")
 
     # ML state variables
     STABILITY_THRESHOLD_FRAMES = 10
@@ -214,41 +266,99 @@ def index():
     # cleanup old sessions on homepage load
     cleanup_old_sessions(max_age_seconds=3600)
 
-    if request.method == "POST":
-        youtube_url = request.form.get("youtube_url", "").strip()
-        sensitivity_raw = request.form.get("sensitivity", "0.98")
+    # Keep original POST handler for non-AJAX fallback. AJAX route `/api/generate`
+    return render_template("index.html")
 
-        # Validate sensitivity
-        try:
-            sensitivity = float(sensitivity_raw)
-            if not (0.90 <= sensitivity <= 0.999):
-                sensitivity = 0.98
-        except Exception:
+
+@app.route('/api/generate', methods=['POST'])
+def api_generate():
+    video_url = request.form.get("video_url", "").strip()
+    sensitivity_raw = request.form.get("sensitivity", "0.98")
+
+    # Validate sensitivity
+    try:
+        sensitivity = float(sensitivity_raw)
+        if not (0.90 <= sensitivity <= 0.999):
             sensitivity = 0.98
+    except Exception:
+        sensitivity = 0.98
 
-        if not youtube_url:
-            flash("Please enter a YouTube URL.")
-            return redirect(url_for("index"))
+    if not video_url:
+        return jsonify({'success': False, 'error': 'Please enter a video URL (YouTube or other supported video URL).'}), 400
 
-        session_id = str(uuid.uuid4())
-        session["session_id"] = session_id
-        session_dir = os.path.join(SESSIONS_DIR, session_id)
-        os.makedirs(session_dir, exist_ok=True)
+    session_id = str(uuid.uuid4())
+    session['session_id'] = session_id
+    session_dir = os.path.join(SESSIONS_DIR, session_id)
+    os.makedirs(session_dir, exist_ok=True)
 
-        try:
-            images, pptx_path, zip_path = youtube_to_slides(youtube_url, session_id, similarity_threshold=sensitivity)
-        except Exception as e:
-            # cleanup on failure
-            shutil.rmtree(session_dir, ignore_errors=True)
-            flash(f"Error processing video: {e}")
-            return redirect(url_for("index"))
+    try:
+        images, pptx_path, zip_path = video_url_to_slides(video_url, session_id, similarity_threshold=sensitivity)
+    except Exception as e:
+        app.logger.error(f"Error processing video: {e}")
+        app.logger.error(traceback.format_exc())
+        # cleanup on failure
+        shutil.rmtree(session_dir, ignore_errors=True)
+        return jsonify({'success': False, 'error': f'Error processing video: {e}'}), 500
 
-        # Save paths in session for preview and downloads
-        session["images"] = images
-        session["pptx_path"] = pptx_path
-        session["zip_path"] = zip_path
+    # Save paths in session for preview and downloads
+    session['images'] = images
+    session['pptx_path'] = pptx_path
+    session['zip_path'] = zip_path
 
-        return redirect(url_for("preview"))
+    return jsonify({'success': True, 'preview_url': url_for('preview')})
+
+
+@app.route('/api/upload', methods=['POST'])
+def api_upload():
+    # Accept a video file upload and process it into slides
+    if 'video_file' not in request.files:
+        return jsonify({'success': False, 'error': 'No file part (video_file) in request.'}), 400
+    file = request.files['video_file']
+    if file.filename == '':
+        return jsonify({'success': False, 'error': 'No selected file.'}), 400
+
+    sensitivity_raw = request.form.get('sensitivity', '0.98')
+    try:
+        sensitivity = float(sensitivity_raw)
+        if not (0.90 <= sensitivity <= 0.999):
+            sensitivity = 0.98
+    except Exception:
+        sensitivity = 0.98
+
+    session_id = str(uuid.uuid4())
+    session['session_id'] = session_id
+    session_dir = os.path.join(SESSIONS_DIR, session_id)
+    os.makedirs(session_dir, exist_ok=True)
+
+    # Save uploaded file to session_dir
+    filename = os.path.join(session_dir, 'uploaded_video')
+    # try to preserve extension if present
+    orig = file.filename
+    _, ext = os.path.splitext(orig)
+    if ext:
+        filename = filename + ext
+    else:
+        filename = filename + '.mp4'
+
+    try:
+        file.save(filename)
+    except Exception as e:
+        app.logger.error(f"Failed saving uploaded file: {e}")
+        return jsonify({'success': False, 'error': 'Failed to save uploaded file.'}), 500
+
+    try:
+        images, pptx_path, zip_path = process_video(filename, session_id, similarity_threshold=sensitivity)
+    except Exception as e:
+        app.logger.error(f"Error processing uploaded video: {e}")
+        app.logger.error(traceback.format_exc())
+        shutil.rmtree(session_dir, ignore_errors=True)
+        return jsonify({'success': False, 'error': f'Error processing video: {e}'}), 500
+
+    session['images'] = images
+    session['pptx_path'] = pptx_path
+    session['zip_path'] = zip_path
+
+    return jsonify({'success': True, 'preview_url': url_for('preview')})
 
     return render_template("index.html")
 

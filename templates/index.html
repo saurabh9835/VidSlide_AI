@@ -21,8 +21,13 @@
         <h2 class="text-logo">VidSlide AI</h2>
 
         <div class="form-card" id="form-card">
-            <form method="POST" id="main-form">
-                <input type="text" id="youtube_url" name="youtube_url" placeholder="Paste YouTube link (e.g. https://www.youtube.com/..)" required>
+            <form method="POST" id="main-form" enctype="multipart/form-data">
+                <input type="text" id="video_url" name="video_url" placeholder="Paste video link (YouTube, Vimeo, mp4, or other supported URL)">
+                <div class="upload-row">
+                    <label for="video_file">Or upload a video file:</label>
+                    <input type="file" id="video_file" name="video_file" accept="video/*">
+                </div>
+                <div class="help-text">Provide either a video URL or upload a file.</div>
 
                 <div class="setting-row">
                     <label for="sensitivity">Detection Sensitivity:</label>
@@ -70,28 +75,70 @@
         const progressText = document.getElementById('progress-text');
         const mainContainer = document.getElementById('main-container');
 
-        form.addEventListener('submit', function() {
+        // Replace normal submit with AJAX so we can show server errors inline.
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const fd = new FormData(form);
+            const fileInput = document.getElementById('video_file');
+            const hasFile = fileInput && fileInput.files && fileInput.files.length > 0;
+            const videoUrl = document.getElementById('video_url').value.trim();
+
+            if (!videoUrl && !hasFile) {
+                alert('Please provide either a video URL or upload a file.');
+                return;
+            }
+
             mainContainer.classList.add('processing');
             formCard.classList.add('hidden');
+            progressContainer.style.display = 'block';
+            progressText.style.display = 'block';
+            progressContainer.classList.add('visible');
+            progressText.classList.add('visible');
 
-            setTimeout(() => {
-                progressContainer.style.display = 'block';
-                progressText.style.display = 'block';
-                progressContainer.classList.add('visible');
-                progressText.classList.add('visible');
+            let width = 0;
+            const interval = setInterval(function() {
+                if (width >= 95) { /* keep animating but stop at 95% until server finishes */ }
+                else {
+                    if (width < 60) width += 1;
+                    else if (width < 85) width += 0.5;
+                    else width += 0.1;
+                    progressBar.style.width = width + '%';
+                    progressBar.innerText = Math.round(width) + '%';
+                }
+            }, 2000);
 
-                let width = 0;
-                const interval = setInterval(function() {
-                    if (width >= 95) { clearInterval(interval); }
-                    else {
-                        if (width < 60) width += 1;
-                        else if (width < 85) width += 0.5;
-                        else width += 0.1;
-                        progressBar.style.width = width + '%';
-                        progressBar.innerText = Math.round(width) + '%';
+            const endpoint = hasFile ? '/api/upload' : '/api/generate';
+            if (hasFile) fd.set('video_file', fileInput.files[0]);
+
+            fetch(endpoint, { method: 'POST', body: fd })
+                .then(resp => resp.json().then(j => ({status: resp.status, body: j})))
+                .then(({status, body}) => {
+                    clearInterval(interval);
+                    if (status >= 200 && body.success) {
+                        // Go to preview page
+                        window.location.href = body.preview_url;
+                    } else {
+                        // show error and reset UI
+                        const msg = body && body.error ? body.error : 'Unknown error';
+                        progressBar.style.width = '0%';
+                        progressBar.innerText = '0%';
+                        progressContainer.style.display = 'none';
+                        progressText.style.display = 'none';
+                        formCard.classList.remove('hidden');
+                        mainContainer.classList.remove('processing');
+                        alert('Failed: ' + msg);
                     }
-                }, 2000);
-            }, 300);
+                })
+                .catch(err => {
+                    clearInterval(interval);
+                    progressBar.style.width = '0%';
+                    progressBar.innerText = '0%';
+                    progressContainer.style.display = 'none';
+                    progressText.style.display = 'none';
+                    formCard.classList.remove('hidden');
+                    mainContainer.classList.remove('processing');
+                    alert('Network or server error: ' + err);
+                });
         });
     </script>
 </body>
