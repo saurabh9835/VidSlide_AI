@@ -36,13 +36,21 @@ keras_image = None
 def load_keras_modules():
     global ResNet50, preprocess_input, keras_image
     try:
-        resnet_mod = importlib.import_module("tensorflow.keras.applications.resnet50")
-        keras_image = importlib.import_module("tensorflow.keras.preprocessing.image")
-    except ModuleNotFoundError:
-        resnet_mod = importlib.import_module("keras.applications.resnet50")
-        keras_image = importlib.import_module("keras.preprocessing.image")
-    ResNet50 = getattr(resnet_mod, "ResNet50")
-    preprocess_input = getattr(resnet_mod, "preprocess_input")
+        try:
+            resnet_mod = importlib.import_module("tensorflow.keras.applications.resnet50")
+            keras_image = importlib.import_module("tensorflow.keras.preprocessing.image")
+        except (ModuleNotFoundError, ImportError):
+            resnet_mod = importlib.import_module("keras.applications.resnet50")
+            keras_image = importlib.import_module("keras.preprocessing.image")
+        ResNet50 = getattr(resnet_mod, "ResNet50")
+        preprocess_input = getattr(resnet_mod, "preprocess_input")
+        return True
+    except Exception as e:
+        logging.error(f"Could not import Keras modules: {e}")
+        ResNet50 = None
+        preprocess_input = None
+        keras_image = None
+        return False
 
 # -------------------------
 # Configuration
@@ -59,12 +67,15 @@ os.makedirs(SESSIONS_DIR, exist_ok=True)
 # If you want to skip heavy loading during dev, set SKIP_ML=True environment var.
 SKIP_ML = os.environ.get("SKIP_ML", "0") == "1"
 if not SKIP_ML:
-    try:
-        load_keras_modules()
-        base_model = ResNet50(weights="imagenet", include_top=False, pooling="avg")
-        app.logger.info("ResNet50 loaded.")
-    except Exception as e:
-        app.logger.error(f"Failed to load ResNet50: {e}")
+    if load_keras_modules():
+        try:
+            base_model = ResNet50(weights="imagenet", include_top=False, pooling="avg")
+            app.logger.info("ResNet50 loaded.")
+        except Exception as e:
+            app.logger.error(f"Failed to initialize ResNet50: {e}")
+            base_model = None
+    else:
+        app.logger.error("Keras modules failed to import; skipping model initialization.")
         base_model = None
 else:
     base_model = None
